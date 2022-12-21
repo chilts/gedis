@@ -54,11 +54,36 @@ func (s *Server) processRequest(cmd string, args []string) (string, error) {
 	}
 }
 
+type setResponse struct {
+	Ok bool `json:"ok"`
+}
+
 func main() {
 	store := &Store{
 		data: make(map[string]string),
 	}
 	server := &Server{store: store}
+
+	handleSet := func(w http.ResponseWriter, r *http.Request) {
+		// Check that the request method is POST
+		if r.Method != http.MethodPost {
+			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Parse the request body as JSON
+		var body interface{}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		// Set the content type of the response to application/json
+		w.Header().Set("Content-Type", "application/json")
+
+		// Write the JSON response indicating that the operation was successful
+		json.NewEncoder(w).Encode(setResponse{Ok: true})
+	}
 
 	// Hello world, the web server
 	handler := func(w http.ResponseWriter, req *http.Request) {
@@ -68,9 +93,6 @@ func main() {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-
-		// Process this request
-		// args := input[1:]
 
 		// Process each request
 		response, err := server.processRequest(input[0], input[1:])
@@ -87,6 +109,7 @@ func main() {
 		}
 	}
 
+	http.HandleFunc("/set", handleSet)
 	http.HandleFunc("/", handler)
 
 	log.Println("Listing for requests at http://localhost:8000/")
